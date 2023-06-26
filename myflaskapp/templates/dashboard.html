@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}" />
+
+    <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.0/css/line.css">
+
+    <title>Admin Dashboard Panel</title>
+</head>
+
+<body>
+    <nav>
+        <div class="logo-name">
+            <div class="logo-image">
+                <img src="{{ url_for('static', filename='images/Screenshot (661).png') }}" alt="Image">
+            </div>
+
+            <span class="logo_name">Wised</span>
+        </div>
+
+        <div class="menu-items">
+            <ul class="nav-links">
+                <li>
+                    <a href="{{ url_for('dashboard') }}">
+                        <i class="uil uil-estate"></i>
+                        <span class="link-name">Dashboard</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('recents') }}">
+                        <i class="uil uil-clock-three"></i>
+                        <span class="link-name">Recents</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('synced') }}">
+                        <i class="uil uil-tachometer-fast-alt"></i>
+                        <span class="link-name">Synced</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('trash') }}">
+                        <i class="uil uil-trash"></i>
+                        <span class="link-name">Trash</span>
+                    </a>
+                </li>
+            </ul>
+
+            <ul class="logout-mode">
+                <li>
+                    <a href="{{ url_for('logout') }}">
+                        <i class="uil uil-signout"></i>
+                        <span class="link-name">Logout</span>
+                    </a>
+                </li>
+
+                <li class="mode">
+                    <a href="#">
+                        <i class="uil uil-moon"></i>
+                        <span class="link-name">Dark Mode</span>
+                    </a>
+
+                    <div class="mode-toggle">
+                        <span class="switch"></span>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="dashboard">
+        <div class="top">
+            <i class="uil uil-bars sidebar-toggle"></i>
+
+            <div class="search-box">
+                <i class="uil uil-search"></i>
+                <input type="text" placeholder="Search here...">
+            </div>
+            <div class="upload-container">
+                <button class="upload-btn" id="uploadBtn">
+                    <i class="fas fa-upload"></i>Upload Your Files
+                </button>
+                <!-- The real file input, hidden -->
+                <form id="uploadForm" method="post" action="{{ url_for('upload_file') }}" enctype="multipart/form-data">
+                    <input type="file" id="realFile" name="file" hidden />
+                </form>
+            </div>
+
+
+            <img src="{{ url_for('static', filename='images/profile.jpg') }}" alt="Image">
+        </div>
+
+        <div class="dash-content">
+        <!-- All Files Section -->
+        {% if request.endpoint == 'dashboard' or request.endpoint == 'recents' or request.endpoint == 'synced' %}
+        <div class="all-files">
+            <div class="title">
+                <i class="uil uil-file-alt"></i>
+                <span class="text">{{ title }}</span>
+            </div>
+            <ul class="file-list">
+                {% for file in files %}
+                {% if not file.is_deleted and file_exists(file.filename) %}
+                <li id="{{ file.filename }}">
+                    <a href="{{ url_for('uploaded_file', filename=file.filename) }}" target="_blank">
+                        <div class="file-thumbnail">
+                            <img src="{{ url_for('uploaded_file', filename=file.filename) }}" alt="{{ file.filename }}">
+                            <span class="file-name">{{ file.filename }}</span>
+                        </div>
+                    </a>
+                    <button class="delete-btn" data-filename="{{ file.filename }}">Delete</button>
+                </li>
+                {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Deleted Files Section -->
+        {% if request.endpoint == 'trash' %}
+        <div class="deleted-files">
+            <div class="title">
+                <i class="uil uil-file-alt"></i>
+                <span class="text">Trash</span>
+            </div>
+            <button class="delete-all-btn">Delete All</button>
+            <ul class="file-list">
+                {% for file in files %}
+                {% if file.is_deleted and file_exists_in_trash(file.filename) %}
+                <li>
+                    <div class="file-thumbnail">
+                        <img src="{{ url_for('uploaded_file', filename=file.filename) }}" alt="{{ file.filename }}">
+                        <span class="file-name">{{ file.filename }}</span>
+                    </div>
+                </li>
+                {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+    </div>
+    </section>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    <script>
+        var uploadBtn = document.getElementById("uploadBtn");
+        var realFile = document.getElementById("realFile");
+        var isUploading = false; // Add this variable to track upload status
+
+        uploadBtn.addEventListener("click", function () {
+            if (!isUploading) { // Check if not currently uploading
+                realFile.click();
+            }
+        });
+
+        realFile.addEventListener("change", function () {
+            if (!isUploading && realFile.files.length > 0) {
+                isUploading = true; // Set uploading status to true
+
+                var file = realFile.files[0];
+                var formData = new FormData();
+                formData.append("file", file);
+
+                uploadBtn.disabled = true; 
+
+                fetch("/upload", {
+                    method: "POST",
+                    body: formData,
+                })
+                    .then(function (response) {
+                        if (response.ok) {
+                            location.reload();
+                        } else {
+                            alert("An error occurred while uploading the file.");
+                        }
+                    })
+                    .catch(function (error) {
+                        alert("An error occurred while uploading the file.");
+                    })
+                    .finally(function () {
+                        isUploading = false; // Set uploading status to false
+                        uploadBtn.disabled = false;
+                        realFile.value = "";
+                    });
+            }
+        });
+
+       document.querySelectorAll('.delete-btn').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var filename = this.dataset.filename;
+                var listItem = this.closest('li');
+
+                if (confirm("Are you sure you want to move this file to the trash?")) {
+                    fetch('/delete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ filename: filename })
+                    })
+                        .then(function (response) {
+                            if (response.ok) {
+                                
+                                listItem.remove();
+                            } else {
+                                alert('An error occurred while moving the file to the trash.');
+                            }
+                        })
+                        .catch(function (error) {
+                            alert('An error occurred while moving the file to the trash.');
+                        });
+                }
+            });
+        });
+        
+        document.querySelector('.delete-all-btn').addEventListener('click', function () {
+                if (confirm('Are you sure you want to delete all files permanently?')) {
+                    fetch('/delete_all', {
+                        method: 'POST',
+                    })
+                        .then(function (response) {
+                            if (response.ok) {
+                                // Remove all files from the file list
+                                var fileItems = document.querySelectorAll('.file-list li');
+                                fileItems.forEach(function (item) {
+                                    item.remove();
+                                });
+                            } else {
+                                alert('An error occurred while deleting all files.');
+                            }
+                        })
+                        .catch(function (error) {
+                            alert('An error occurred while deleting all files.');
+                        });
+                }
+            });
+
+
+    </script>
+    <script>
+        // ...
+        var searchBox = document.querySelector(".search-box input");
+            var fileList = document.querySelector(".file-list");
+
+            searchBox.addEventListener("input", function () {
+                // Make an AJAX request to the search route
+                fetch('/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: searchBox.value })
+                })
+                    .then(function (response) {
+                        if (response.ok) {
+                            return response.json();
+                        } else {
+                            throw new Error('An error occurred while searching.');
+                        }
+                    })
+                    .then(function (result) {
+                        // Clear the file list
+                        while (fileList.firstChild) {
+                            fileList.removeChild(fileList.firstChild);
+                        }
+
+                        // Populate the file list with the search results
+                        for (var i = 0; i < result.length; i++) {
+                            var file = result[i];
+
+                            var li = document.createElement("li");
+
+                            var a = document.createElement("a");
+                            a.href = file.url;
+                            a.target = "_blank";
+
+                            var div = document.createElement("div");
+                            div.className = "file-thumbnail";
+
+                            var img = document.createElement("img");
+                            img.src = file.url;
+                            img.alt = file.filename;
+
+                            var span = document.createElement("span");
+                            span.className = "file-name";
+                            span.textContent = file.filename;
+
+                            div.appendChild(img);
+                            div.appendChild(span);
+                            a.appendChild(div);
+                            li.appendChild(a);
+
+                            fileList.appendChild(li);
+                        }
+                    })
+                    .catch(function (error) {
+                        alert(error.message);
+                    });
+            });
+
+        // ...
+    </script>
+
+</body>
+
+</html>
